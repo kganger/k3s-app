@@ -1,0 +1,6 @@
+micronaut:
+  application:
+    name: demoEdge
+graphql:
+  enabled: false
+  path: /graphql
