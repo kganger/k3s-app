@@ -1,0 +1,29 @@
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: http
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - {{ include "java.fullname" . }}  # 1 The name of the gateway we just creted
+  http:
+    - match:
+        - uri:
+            exact: /http   # 2 The URL Path for this applaction http:ingress.ocp.com/http  The /http is what is needed
+      rewrite:
+        uri: /           # 3 Changes the requestion path to what the application expects
+      route:
+        - destination:
+            host: {{ include "java.fullname" . }}    # 4 This is the name of the application
+            port:
+              number: {{ .Values.service.port}}
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: httpd
+spec:
+  host: combo-pod

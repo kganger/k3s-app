@@ -1,0 +1,13 @@
+{{- if .Values.configmap }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+    name: {{ include "java.fullname" . }}
+    labels:
+        {{- include "java.selectorLabels" . | nindent 4 }}
+data:
+        {{- range $key, $val := .Values.configmap }}
+        {{ $key }}: {{ $val | quote }}
+        {{- end}}
+        {{- end}}

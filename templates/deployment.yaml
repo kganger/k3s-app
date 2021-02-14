@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "java.fullname" . }}
+  labels:
+    {{- include "java.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "java.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+    {{ - if .Values.serviceMesh.enabled }}
+      annotations:
+        sidecar.istio.io/inject: "true"
+    {{ end }}
+      labels:
+        {{- include "java.selectorLabels" . | nindent 8 }}
+    spec:
+{{- if and (not (empty .Values.imagePullCredentials.username)) (not (empty .Values.imagePullCredentials.password)) }}
+      imagePullSecrets:
+        - name: {{ .Values.imagePullCredentials.name }}
+{{ end }}
+      serviceAccountName: {{ include "java.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+        {{- if .Values.persistence.enabled }}
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: {{ include "java.fullname" . }}
+      {{- end }}
+
+      {{- if .Values.persistence.ephemeral.enabled }}
+        - name: scratch-volume
+          emptyDir: {}
+      {{- end }}
+
+      {{- if .Values.secretVolumes.enabled }}
+        - name: {{ .Values.secretVolumes.volumeName}}
+          secret:
+            secretName: {{ .Values.secretVolumes.secretName}}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{.Values.image.registry}}/{{.Values.image.repository}}:{{.Values.image.tag}}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+           {{- if .Values.activeProfiles }}
+            - name: SPRING_PROFILES_ACTIVE
+              value: {{ .Values.activeProfiles }}
+           {{end}}
+            {{- range $key, $val := .Values.environment }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+            {{- end}}
+          envFrom:
+            - secretRef:
+                name: {{ include "java.fullname" . }}
+                optional: true
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+            initialDelaySeconds: {{ .Values.readinessProbe.delay }}
+            periodSeconds: {{ .Values.readinessProbe.period }}
+            successThreshold: 1
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+            {{- if .Values.readinessProbe.springBoot.enabled }}
+            httpGet:
+              path: {{ .Values.readinessProbe.springBoot.path }}
+              port: http
+              scheme: HTTP
+            {{ else }}
+            tcpSocket:
+              port: http
+            {{ end }}
+          livenessProbe:
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+            initialDelaySeconds: {{ .Values.livenessProbe.delay }}
+            periodSeconds: {{ .Values.livenessProbe.period  }}
+            successThreshold: 1
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+            {{- if .Values.livenessProbe.springBoot.enabled }}
+            httpGet:
+              path: {{ .Values.livenessProbe.springBoot.path }}
+              port: http
+              scheme: HTTP
+            {{ else }}
+            tcpSocket:
+              port: http
+            {{ end }}
+          volumeMounts:
+          {{- if .Values.persistence.enabled }}
+          - mountPath: {{ .Values.persistence.mountPath }}
+            name: data-volume
+          {{end}}
+          {{- if .Values.secretVolumes.enabled }}
+          - name: {{.Values.secretVolumes.volumeName}}
+            mountPath: {{.Values.secretVolumes.mountPath}}
+            readOnly: true
+          {{end}}
+
+          {{- if .Values.persistence.ephemeral.enabled }}
+          - mountPath: {{ .Values.persistence.ephemeral.mountPath }}
+            name: scratch-volume
+          {{end}}
+
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
