@@ -3,4 +3,4 @@ defaultPackage: com.example
 testFramework: junit
 sourceLanguage: kotlin
 buildTool: gradle_kotlin
-features: [annotation-api, app-name, gradle, graphql, http-client, jib, junit, kotlin, kotlin-application, kotlin-extension-functions, logback, management, netty-server, reactor, readme, shade, yaml]
+features: [annotation-api, app-name, gradle, github-workflow-docker-registry, graphql, http-client, jib, junit, kotlin, kotlin-application, kotlin-extension-functions, logback, management, netty-server, reactor, readme, shade, yaml]
